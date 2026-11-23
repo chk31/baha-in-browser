@@ -9,6 +9,11 @@
 - オンライン対戦の記録は保存しない。
 - claude.ai のアーティファクト版は、今まで通り claude.ai の DB に保存する（GitHub 保存の設定は出ない）。
 
+## claude.ai 版の記録の移行
+claude.ai 版から書き出した JSON（`{exportedAt,count,games:[…]}`）は、次の2か所に入れられる。
+- GitHub：`records` ブランチの `records/年/月/<id>.json` に、1局1ファイルで入れる（2026-11-23 に86局を入れた。`imported` の項目が付く）。構造化ログ `ev` は無いので、`records_to_jsonl.py` では飛ばされる。
+- この端末：「対戦の記録」→「記録ファイルを読み込む」。同じ id は飛ばす。勝率バッジに反映される。
+
 ## 鍵の作り方（端末ごとに一度）
 1. GitHub → 右上のアイコン → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token。
 2. Expiration は好みで（切れたら作り直して貼り直す）。

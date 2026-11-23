@@ -72,6 +72,16 @@ function recordGame(rec){
   ghFlush().then(r=>{if(r.error)banner('記録をGitHubに送れませんでした（次に開いたとき送り直します）');else if(r.sent)banner('記録をGitHubに保存しました');});
 }
 const localRecords=()=>lsGet(REC_LOCAL_KEY,[]);
+// 書き出したファイル（{games:[…]} か配列）を端末の記録に取り込む。同じ id は飛ばす。戻り値 {added, total}
+function importRecordsText(text){
+  const d=JSON.parse(text);const arr=Array.isArray(d)?d:d.games;
+  if(!Array.isArray(arr))throw new Error('記録のファイルではありません');
+  const L=lsGet(REC_LOCAL_KEY,[]),have=new Set(L.map(x=>x.id));let added=0;
+  for(const g of arr){if(!g||!g.id||!g.endedAt||have.has(g.id))continue;const {ev,snapshots,...sum}=g;L.push({...sum,snapshots});have.add(g.id);added++;}
+  L.sort((a,b)=>(b.endedAt||'').localeCompare(a.endedAt||''));
+  while(L.length>REC_LOCAL_MAX||(!lsSet(REC_LOCAL_KEY,L)&&L.length>1))L.pop();
+  return{added,total:L.length};
+}
 
 // 設定画面
 function showGhSettings(onDone){

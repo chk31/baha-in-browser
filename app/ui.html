@@ -315,9 +315,12 @@ const pct=(a,b)=>b?Math.round(a/b*100)+'%':'-';
 function cpuStatText(st){return st.n?`CPUの勝率 <b>${pct(st.w,st.n)}</b>（${st.n}局：CPU ${st.w}勝 ${st.n-st.w}敗）・あなたが先攻のとき ${pct(st.fw,st.fn)}（${st.fn}局）・後攻のとき ${pct(st.sw,st.sn)}（${st.sn}局）`:'まだこのレベルの対戦記録がありません。';}
 function recDate(iso){try{const d=new Date(iso);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}catch(e){return '';}}
 function showRecords(){
-  modal(`<h2>対戦の記録</h2><div id="recBody"><p>読み込み中…</p></div><div class="btns"><button data-x>閉じる</button></div>`,(r,close)=>{
+  modal(`<h2>対戦の記録</h2><div id="recBody"><p>読み込み中…</p></div><div class="btns"><button data-imp>記録ファイルを読み込む</button><button data-x>閉じる</button></div><input type="file" id="impF" accept=".json,application/json" style="display:none">`,(r,close)=>{
     r.querySelector('[data-x]').onclick=()=>close();
     const body=r.querySelector('#recBody');
+    if(typeof claude!=='undefined'&&claude.use)r.querySelector('[data-imp]').remove();
+    else{const f=r.querySelector('#impF');r.querySelector('[data-imp]').onclick=()=>f.click();
+      f.onchange=async()=>{try{const x=importRecordsText(await f.files[0].text());G.recs=undefined;close();showRecords();banner(`${x.added}局を読み込みました（端末内 ${x.total}局）`);}catch(e){body.innerHTML='<p>読み込めませんでした：'+esc(e.message)+'</p>';}};}
     loadRecords().then(list=>{
       if(list===null){body.innerHTML='<p>記録を読み込めませんでした（このページを開いている環境では保存領域が使えません）。</p>';return;}
       if(!list.length){body.innerHTML='<p>まだ記録がありません。1局終わると自動で保存されます。</p>';return;}
