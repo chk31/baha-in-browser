@@ -108,6 +108,8 @@ button.aih::after{top:-11px;right:-8px}
 .banner div+div{margin-top:3px;border-top:1px dashed #ffffff55;padding-top:3px}
 .setrow{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:12px;font-weight:500}
 .setrow button{flex:none}
+.fl{display:block;font-size:12px;margin:6px 0}
+.tin{display:block;width:100%;font:inherit;font-weight:500;font-size:16px;padding:6px 8px;margin-top:2px;border:2.5px solid var(--ink);background:#fff;color:var(--ink);border-radius:0;-webkit-user-select:text;user-select:text}
 .codebig{font-size:40px;font-weight:900;letter-spacing:8px;text-align:center;background:#fff;border:3px solid var(--ink);box-shadow:var(--sh);padding:6px 0 6px 8px;margin:10px 0;-webkit-user-select:text;user-select:text}
 .codein{font:inherit;font-weight:900;font-size:28px;letter-spacing:6px;text-align:center;text-transform:uppercase;width:100%;padding:8px;margin:6px 0;border:2.5px solid var(--ink);background:#fff;color:var(--ink);border-radius:0;-webkit-user-select:text;user-select:text}
 #netInfo{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 46px);z-index:60;background:var(--red);color:#fff;border:2.5px solid var(--ink);padding:5px 10px;font-size:12px;max-width:92vw}
@@ -300,7 +302,7 @@ function showDiscard(){const s=G.s;if(!s)return;modal(`<h2>捨て札（${s.disca
 function showLog(){const s=G.s;if(!s){showRecords();return;}modal(`<h2>ログ</h2><div class="log sum" id="lg">${s.log.filter(l=>l.cls!=='rule'||s.winner!=null).map(l=>`<div class="${l.cls}">${esc(T(l.msg))}</div>`).join('')}</div><div class="btns"><button data-rec>過去の記録</button><button data-x>閉じる</button></div>`,(r,close)=>{r.querySelector('[data-x]').onclick=()=>close();r.querySelector('[data-rec]').onclick=()=>{close();showRecords();};const m=r.querySelector('.modal');m.scrollTop=m.scrollHeight;},'refRoot');}
 // ---- 過去の対戦記録（保存した記録を読み出して表示） ----
 async function loadRecords(){
-  if(typeof claude==='undefined'||!claude.use)return null;
+  if(typeof claude==='undefined'||!claude.use)return localRecords();   // GitHub Pages 版：この端末に残した記録
   const db=await Promise.race([claude.use('db'),new Promise(r=>setTimeout(()=>r(null),10000))]);
   if(!db)return null;
   const q=db.collection('games').orderBy('endedAt','desc').limit(200).get();
@@ -402,7 +404,16 @@ function gameSnap(s){return{turn:s.turnCount,player:s.turn,life:s.players.map(p=
   hand:s.players.map(p=>p.hand.map(NAME)),field:s.players.map(p=>p.field.map(NAME)),discard:s.discard.map(NAME),deck:s.deck.length};}
 async function saveGame(s,w){
   try{
-    if(typeof claude==='undefined'||!claude.use)return;
+    if(typeof claude==='undefined'||!claude.use){   // GitHub Pages 版：端末に残し、設定があれば GitHub に送る（records.js）
+      const endedAt=new Date().toISOString();
+      const id=endedAt.replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(36).slice(2,6);
+      recordGame({version:1,id,startedAt:G.startedAt||null,endedAt,level:LV_NAME[G.level]||String(G.level),
+        rules:!!G.rules,hint:!!G.hint,first:s.first===0?'あなた':'CPU',winner:w===0?'あなた':'CPU',turns:s.turnCount,
+        agree:G.stat?{same:G.stat.m,total:G.stat.n,byKind:G.stat.k}:null,
+        log:s.log.map(l=>l.cls?l.cls+'|'+l.msg:l.msg),snapshots:G.snaps||[],
+        cards:CARDS.map(d=>d.name),ev:s.ev||[]});
+      G.recs=undefined;return;
+    }
     const db=await Promise.race([claude.use('db'),new Promise(r=>setTimeout(()=>r(null),10000))]);
     if(!db)return;
     const id=new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(36).slice(2,6);
@@ -427,6 +438,7 @@ function startScreen(){
   <div class="btns"><button data-f="0">先攻</button><button data-f="1">後攻</button><button data-f="r">ランダム</button></div>
   <div class="setrow"><button class="sm" id="hintBtn"></button><span>おすすめの手を青い枠で示す</span></div>
   <div class="setrow"><button class="sm" id="ruleBtn"></button><span>勝ちが確定する手・負けを防ぐ手をルールで決める（AI5〜AI6.5・おすすめに適用）</span></div>
+  <div class="setrow" id="ghRow"><button class="sm" id="ghBtn"></button><span>対戦の記録を GitHub のリポジトリに貯める（この端末だけの設定）</span></div>
   <div class="btns"><button class="sm" data-r>ルール・カード一覧</button><button class="sm" data-rec>対戦の記録</button></div>
   <h2 style="margin-top:14px">オンライン対戦（合言葉）</h2>
   <p style="font-size:12px">知り合いと、合言葉で部屋に入って対戦します。</p>
@@ -446,8 +458,11 @@ function startScreen(){
     const rb=r.querySelector('#ruleBtn');const ur=()=>{rb.textContent=G.rules?'確定手ルール：ON':'確定手ルール：OFF';rb.classList.toggle('pri',G.rules);};
     rb.onclick=()=>{G.rules=!G.rules;try{localStorage.setItem('hb_rules',G.rules?'on':'off');}catch(e){}ur();};ur();
     r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const v=b.dataset.f;close();startGame(v==='r'?(Math.random()<.5?0:1):+v);});r.querySelector('[data-r]').onclick=showRef;r.querySelector('[data-rec]').onclick=showRecords;
+    const gb=r.querySelector('#ghBtn');const ug=()=>{const on=!!ghCfg();gb.textContent=on?'GitHub保存：ON':'GitHub保存：OFF';gb.classList.toggle('pri',on);};
+    if(typeof claude!=='undefined'&&claude.use)r.querySelector('#ghRow').remove();else{gb.onclick=()=>showGhSettings(ug);ug();}
     r.querySelector('[data-oh]').onclick=()=>{close();netHostLobby();};r.querySelector('[data-oj]').onclick=()=>{close();netJoinLobby();};});
 }
+/*RECORDS*/
 /*ONLINE*/
 startScreen();
 </script>

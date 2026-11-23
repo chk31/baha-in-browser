@@ -7,6 +7,7 @@ c2 = rd('cpu2.js'); i = c2.find("if(typeof module!=='undefined')"); c2 = c2[:i] 
 h = (rd('ui.html').replace('/*ENGINE*/', rd('engine.js')).replace('/*CPU2*/', c2)
      .replace('/*RL*/', rd('rl.js') + rd('weights/rl_weights5.js') + rd('weights/rl_weights6.js') + rd('weights/rl_weights65.js'))
      .replace('/*RULES*/', rd('rules.js')).replace('/*ART*/', rd('art.js'))
+     .replace('/*RECORDS*/', rd('records.js'))
      .replace('/*ONLINE*/', rd('online_config.js') + rd('online.js')))
 out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(D, '..', 'site', 'index.html')
 os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)

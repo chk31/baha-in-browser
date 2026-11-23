@@ -21,6 +21,7 @@
 | `app/cpu2.js` | ルールベースCPU「つよい」（「ふつう」は engine.js 内） |
 | `app/art.js` | カードの絵 |
 | `app/online.js`, `app/online_config.js` | オンライン対戦（合言葉）。ホストが進行役。通信は PeerJS か Firebase（`docs/ONLINE.md`） |
+| `app/records.js` | GitHub Pages 版の対戦記録：端末に残し、鍵を設定した端末では GitHub の `records` ブランチに保存（`docs/RECORDS.md`） |
 | `app/build.py` | 1ファイルのページ `site/index.html` を作る |
 | `app/load_all.js` | Node.js から全部品を読み込む（テスト・分析用） |
 | `tools/` | 対戦の記録・表示・再現（`docs/LOG_FORMAT.md`） |
@@ -53,12 +54,13 @@ python python/dump_states.py 300 /tmp/states.json && node tests/parity_js_py.js 
 - **エンジンはエージェント方式。** `runGame(s, [agent0, agent1])` が進行し、判断が必要になるたびに `agent.choosePlay / decideNegate / decideCounter / chooseCard / chooseDiscard / declareName` を `await` する。人間の側は `ui.html` の `human` がボタン入力を待つ Promise を返す。**オンライン対戦の相手は、この同じ口を持つ「通信エージェント」として作れる。**
 - 画面の更新は `s.hooks.update(kind)` から呼ばれる。
 - 乱数は `newGame(first, rng)` に渡す関数だけを使う（`tools/rec_lib.js` の `mulberry32` でシード化できる）。AI は乱数を使わない。
-- 対戦記録の保存（`saveGame`）と過去の記録（`loadRecords`）は、claude.ai のアーティファクトの DB（`claude.use('db')`）を使っている。**GitHub Pages では `claude` が無いので、何もせずに飛ばす作り**になっている。記録を残したいなら、保存先（localStorage と JSON 書き出し、または Firebase など）を別に用意する。どれにするかはユーザーに確認する。
+- 対戦記録の保存（`saveGame`）と過去の記録（`loadRecords`）は、claude.ai のアーティファクトでは DB（`claude.use('db')`）を使う。**GitHub Pages 版（`claude` が無いとき）は `app/records.js`**：端末の localStorage に残し、鍵（fine-grained トークン）を設定した端末では GitHub の `records` ブランチの `records/年/月/<id>.json` に1局1ファイルで保存する。構造化ログ `ev` も入る。分析用には `tools/records_to_jsonl.py` で jsonl.gz にまとめる（`docs/RECORDS.md`）。
 - `engine.js` は構造化ログ `s.ev` も作る。ゲームの進み方は、構造化ログを入れる前の版と同じであることを確認済み。
 
 ## 現状（2026-11-23）
 - 公開中のアプリ（claude.ai のアーティファクト）は CPU 5段階：ふつう／つよい／AI5／AI6／AI6.5（初期値）。
 - 最新は **AI6.5**（AI5 から 3,000万ステップ）。AI6 に 0.55〜0.56、AI5 に 0.61〜0.63。過去の全モデルに勝ち越し、すくみ（非推移）は無い。
 - 学習は別途、ユーザーのローカルPCで Claude Code（VS Code 拡張）が回している。このリポジトリでは学習はしない。
+- 対戦記録を GitHub（`records` ブランチ）に貯められるようにした（`docs/RECORDS.md`）。
 - オンライン対戦（合言葉）を追加。今は PeerJS（WebRTC）でつなぐ。`app/online_config.js` に Firebase の設定を入れると Firebase に切り替わる（`docs/ONLINE.md`）。
 - 直近の修正：R8 に「打ち消す側の手札が0枚なら、相手のひらめき水晶は打ち消さない」を追加（JS・Python とも）。
