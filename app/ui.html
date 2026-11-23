@@ -108,6 +108,10 @@ button.aih::after{top:-11px;right:-8px}
 .banner div+div{margin-top:3px;border-top:1px dashed #ffffff55;padding-top:3px}
 .setrow{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:12px;font-weight:500}
 .setrow button{flex:none}
+.codebig{font-size:40px;font-weight:900;letter-spacing:8px;text-align:center;background:#fff;border:3px solid var(--ink);box-shadow:var(--sh);padding:6px 0 6px 8px;margin:10px 0;-webkit-user-select:text;user-select:text}
+.codein{font:inherit;font-weight:900;font-size:28px;letter-spacing:6px;text-align:center;text-transform:uppercase;width:100%;padding:8px;margin:6px 0;border:2.5px solid var(--ink);background:#fff;color:var(--ink);border-radius:0;-webkit-user-select:text;user-select:text}
+#netInfo{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 46px);z-index:60;background:var(--red);color:#fff;border:2.5px solid var(--ink);padding:5px 10px;font-size:12px;max-width:92vw}
+body.netwait::after{content:'相手が考え中…';position:fixed;right:calc(env(safe-area-inset-right) + 12px);bottom:calc(env(safe-area-inset-bottom) + 64px);z-index:5;background:var(--ink);color:var(--mon);padding:4px 9px;font-size:12px;pointer-events:none}
 .shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media (min-width:700px){h1{font-size:20px}.mini{height:40px;font-size:13px}.mini .art{width:36px;height:36px}.field{min-height:42px}#detail{height:60px;font-size:13.5px}#detail .dart{width:50px;height:50px}.status{font-size:15px}.pill{font-size:13px}}
 #lv button{white-space:nowrap;padding-left:2px;padding-right:2px;min-width:0;flex:1 1 0;font-size:14px}
@@ -185,8 +189,14 @@ document.addEventListener('pointerdown',e=>{
 const G={s:null,sel:null,info:null,awaitPlay:null,level:8,hint:false,rules:true,aiPlay:undefined};
 try{G.hint=localStorage.getItem('hb_hint')==='on';G.rules=localStorage.getItem('hb_rules')!=='off';}catch(e){}
 // AIのおすすめ（自分＝プレイヤー0の視点だけで判断。ONのときだけ計算する）
-function aiAdvice(fn){try{return fn(makeAI65());}catch(e){return null;}}
+function aiAdvice(fn){if(G.online)return null;try{return fn(makeAI65());}catch(e){return null;}}
 const aiLine=()=>'';
+// 相手の呼び名（CPU対戦では「CPU」、オンライン対戦では「相手」）
+const OP=()=>G.online?'相手':'CPU';
+const OPh=()=>G.online?'相手の':'CPU';
+// オンライン対戦では、ログの名前を目印（\uE000＝ホスト、\uE001＝ゲスト）で持ち、見る人に合わせて置き換える
+const NET_NAMES=['\uE000','\uE001'];
+const T=m=>G.online?String(m).replace(/[\uE000\uE001]/g,c=>(c==='\uE000')===(G.online.me===0)?'あなた':'相手'):m;
 G.stat={n:0,m:0,k:{}};
 function recStat(kind,ok){if(ok===null||ok===undefined)return;const S=G.stat;S.n++;if(ok)S.m++;const k=S.k[kind]||(S.k[kind]=[0,0]);k[1]++;if(ok)k[0]++;}
 let RL_NET5=null;const getRL5=()=>RL_NET5||(RL_NET5=rlLoad(RL_WEIGHTS5));let RL_NET6=null;const getRL6=()=>RL_NET6||(RL_NET6=rlLoad(RL_WEIGHTS6));let RL_NET65=null;const getRL65=()=>RL_NET65||(RL_NET65=rlLoad(RL_WEIGHTS65));
@@ -217,20 +227,20 @@ function render(){
   const s=G.s;if(!s){$('hand').innerHTML='';return;}
   const me=s.players[0],cpu=s.players[1];
   const knownCPU=[...s.known[0]];
-  $('cpuPanel').innerHTML=`<div class="row"><span class="who">CPU</span><span class="backs">${cpu.hand.map(()=>'<span class="back"></span>').join('')}</span>${lifeChips(cpu)}</div>
-    ${knownCPU.length?`<div class="backs" style="margin-top:4px"><span class="peek">CPU手札で判明：${knownCPU.map(c=>esc(CARDS[c].name)).join('・')}</span></div>`:''}
-    <div class="field">${cpu.field.length?cpu.field.map(miniHTML).join(''):'<span class="empty">CPUの場：なし</span>'}</div>`;
+  $('cpuPanel').innerHTML=`<div class="row"><span class="who">${OP()}</span><span class="backs">${cpu.hand.map(()=>'<span class="back"></span>').join('')}</span>${lifeChips(cpu)}</div>
+    ${knownCPU.length?`<div class="backs" style="margin-top:4px"><span class="peek">${OPh()}手札で判明：${knownCPU.map(c=>esc(CARDS[c].name)).join('・')}</span></div>`:''}
+    <div class="field">${cpu.field.length?cpu.field.map(miniHTML).join(''):`<span class="empty">${OP()}の場：なし</span>`}</div>`;
   $('youPanel').innerHTML=`<div class="field" style="margin-top:0">${me.field.length?me.field.map(miniHTML).join(''):'<span class="empty">あなたの場：なし</span>'}</div>
     <div class="row" style="margin-top:5px"><span class="who">あなた</span>${lifeChips(me)}</div>`;
   const myTurn=s.turn===0&&s.winner==null;
   const stCls=s.winner!=null?'':myTurn?'you':'cpu';
-  const stTxt=s.winner!=null?(s.winner===0?'あなたの勝ち！':'CPUの勝ち')+' ▸結果':`${myTurn?'あなた':'CPU'}のターン・残り${Math.max(0,s.playsAllowed-s.playsUsed)}`;
+  const stTxt=s.winner!=null?(s.winner===0?'あなたの勝ち！':OP()+'の勝ち')+' ▸結果':`${myTurn?'あなた':OP()}のターン・残り${Math.max(0,s.playsAllowed-s.playsUsed)}`;
   $('mid').innerHTML=`<div class="status ${stCls}${s.winner!=null?' click':''}" id="stBox">${stTxt}</div><div class="pill"><b>${s.deck.length}</b>山札</div><div class="pill click" id="discBox"><b>${s.discard.length}</b>捨て札▸</div><div class="pill"><b>${s.stock}</b>ストック</div>`;
   $('discBox').onclick=showDiscard;
   if(s.winner!=null&&G.result)$('stBox').onclick=()=>showResult();
   document.querySelectorAll('.mini').forEach(el=>el.onclick=()=>{G.info=+el.dataset.c;renderDetail();});
   const canPlay=!!G.awaitPlay;
-  $('hand').innerHTML=me.hand.map(c=>cardHTML(c,(G.sel===c?'sel ':'')+(c===HARA?'dis ':'')+(canPlay&&G.hint&&G.aiPlay===c?'aif':''),s.known[1].has(c)?'<span class="badge">CPUにバレてる</span>':'')).join('');
+  $('hand').innerHTML=me.hand.map(c=>cardHTML(c,(G.sel===c?'sel ':'')+(c===HARA?'dis ':'')+(canPlay&&G.hint&&G.aiPlay===c?'aif':''),s.known[1].has(c)?`<span class="badge">${OP()}にバレてる</span>`:'')).join('');
   document.querySelectorAll('#hand .card').forEach(el=>el.onclick=()=>{const c=+el.dataset.c;G.info=c;if(G.awaitPlay)G.sel=G.sel===c?null:c;render();});
   layoutHand(me.hand.length);
   renderDetail();
@@ -246,7 +256,7 @@ $('playBtn').onclick=()=>{if(G.awaitPlay&&G.sel!=null){const r=G.awaitPlay;G.awa
 $('endBtn').onclick=()=>{if(G.awaitPlay){const r=G.awaitPlay;G.awaitPlay=null;G.sel=null;recStat('プレイ',G.aiPlay===undefined?null:G.aiPlay===-1);r(null);render();}};
 
 let bannerT;
-function banner(msg){const L=Array.isArray(msg)?msg.slice(-5):[msg];const b=$('banner');b.innerHTML=L.map(m=>`<div>${esc(m)}</div>`).join('');b.style.opacity=1;clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity=0,1500+450*(L.length-1));}
+function banner(msg){const L=Array.isArray(msg)?msg.slice(-5):[msg];const b=$('banner');b.innerHTML=L.map(m=>`<div>${esc(T(m))}</div>`).join('');b.style.opacity=1;clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity=0,1500+450*(L.length-1));}
 function modal(html,setup,root='modalRoot',peek=false){
   return new Promise(res=>{const r=$(root);
     r.innerHTML=`<div class="ov ${root==='refRoot'?'ref':''}"><div class="modal">${peek?'<button class="sm peekbtn" data-peek>盤面を見る ▼</button>':''}${html}</div>${peek?'<div class="peekbar"><span class="pt"></span><button class="pri" data-back>選択に戻る ▲</button></div>':''}</div>`;
@@ -263,31 +273,31 @@ const bigHTML=c=>`<div class="big">${cardHTML(c)}<div class="tx"><b>${esc(CARDS[
 // ---- 人間エージェント ----
 const human={
   choosePlay:(s)=>new Promise(res=>{stale(s);G.aiPlay=undefined;const a=aiAdvice(ai=>ai.choosePlay(s,0));if(a!==null)G.aiPlay=a?a.card:-1;G.awaitPlay=res;render();}),
-  decideNegate:async(s,p,card)=>{stale(s);const aiR=aiAdvice(m=>m.decideNegate(s,0,card));const ai=G.hint?aiR:null;return pmodal(`<h2>CPUが「${esc(NAME(card))}」をプレイ</h2>${bigHTML(card)}<p>うちけしの書を1枚使って無効にしますか？（あなたの書：${s.players[0].chips}枚）<br>CPUの書：${s.players[1].chips}枚${s.players[1].chips>=2?'（うちけし返しの可能性あり）':''}</p>${aiLine(ai===null?null:ai?'うちけす':'通す')}<div class="btns"><button class="danger ${ai===true?'aih':''}" data-v="1">うちけす</button><button class="${ai===false?'aih':''}" data-v="0">通す</button></div>`,
+  decideNegate:async(s,p,card)=>{stale(s);const aiR=aiAdvice(m=>m.decideNegate(s,0,card));const ai=G.hint?aiR:null;return pmodal(`<h2>${OP()}が「${esc(NAME(card))}」をプレイ</h2>${bigHTML(card)}<p>うちけしの書を1枚使って無効にしますか？（あなたの書：${s.players[0].chips}枚）<br>${OP()}の書：${s.players[1].chips}枚${s.players[1].chips>=2?'（うちけし返しの可能性あり）':''}</p>${aiLine(ai===null?null:ai?'うちけす':'通す')}<div class="btns"><button class="danger ${ai===true?'aih':''}" data-v="1">うちけす</button><button class="${ai===false?'aih':''}" data-v="0">通す</button></div>`,
     (r,close)=>r.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const v=b.dataset.v==='1';recStat('うちけし',aiR===null?null:aiR===v);close(v);}));},
-  decideCounter:async(s,p,card)=>{stale(s);const aiR=aiAdvice(m=>m.decideCounter(s,0,card));const ai=G.hint?aiR:null;return pmodal(`<h2>CPUがうちけしてきた！</h2>${bigHTML(card)}<p>書を2枚使って「うちけし返し」しますか？（あなたの書：${s.players[0].chips}枚）<br>うちけし返しはそれ以上打ち消されません。</p>${aiLine(ai===null?null:ai?'うちけし返し':'あきらめる')}<div class="btns"><button class="danger ${ai===true?'aih':''}" data-v="1">うちけし返し</button><button class="${ai===false?'aih':''}" data-v="0">あきらめる</button></div>`,
+  decideCounter:async(s,p,card)=>{stale(s);const aiR=aiAdvice(m=>m.decideCounter(s,0,card));const ai=G.hint?aiR:null;return pmodal(`<h2>${OP()}がうちけしてきた！</h2>${bigHTML(card)}<p>書を2枚使って「うちけし返し」しますか？（あなたの書：${s.players[0].chips}枚）<br>うちけし返しはそれ以上打ち消されません。</p>${aiLine(ai===null?null:ai?'うちけし返し':'あきらめる')}<div class="btns"><button class="danger ${ai===true?'aih':''}" data-v="1">うちけし返し</button><button class="${ai===false?'aih':''}" data-v="0">あきらめる</button></div>`,
     (r,close)=>r.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{const v=b.dataset.v==='1';recStat('うちけし返し',aiR===null?null:aiR===v);close(v);}));},
   chooseCard:async(s,p,opts,ctx)=>{stale(s);let sel=null;const aiR=aiAdvice(m=>m.chooseCard(s,0,opts,ctx));const aiC=G.hint?aiR:null;
-    const lbl=c=>ctx.card!==OWAKARE?'':`<div class="lbl">${s.players[1].field.includes(c)?'CPUの場':'あなたの場'}</div>`;
-    return pmodal(`<h2>${esc(NAME(ctx.card))}</h2><p>${esc(ctx.purpose)}${ctx.reveal?'（CPUの手札）':''}を選んでください</p>${aiLine(aiC==null?null:NAME(aiC))}<div class="opts">${opts.map(c=>`<div>${lbl(c)}${cardHTML(c,G.hint&&c===aiC?'aif':'')}</div>`).join('')}</div><div class="mdet" id="mdet"><span style="opacity:.5">タップで効果を表示</span></div><div class="btns"><button class="pri" id="cOK" disabled>決定</button></div>`,
+    const lbl=c=>ctx.card!==OWAKARE?'':`<div class="lbl">${s.players[1].field.includes(c)?OP()+'の場':'あなたの場'}</div>`;
+    return pmodal(`<h2>${esc(NAME(ctx.card))}</h2><p>${esc(ctx.purpose)}${ctx.reveal?'（'+OP()+'の手札）':''}を選んでください</p>${aiLine(aiC==null?null:NAME(aiC))}<div class="opts">${opts.map(c=>`<div>${lbl(c)}${cardHTML(c,G.hint&&c===aiC?'aif':'')}</div>`).join('')}</div><div class="mdet" id="mdet"><span style="opacity:.5">タップで効果を表示</span></div><div class="btns"><button class="pri" id="cOK" disabled>決定</button></div>`,
     (r,close)=>{const ok=r.querySelector('#cOK');r.querySelectorAll('.opts .card').forEach(el=>el.onclick=()=>{sel=+el.dataset.c;r.querySelectorAll('.opts .card').forEach(e=>e.classList.toggle('sel',e===el));r.querySelector('#mdet').innerHTML=`<b>${esc(NAME(sel))}</b>：${esc(CARDS[sel].text)}`;ok.disabled=false;});ok.onclick=()=>{if(opts.length>1)recStat('対象の選択',aiR==null?null:sel===aiR);close(sel);};});},
   chooseDiscard:async(s,p,n,purpose,card=-1)=>{stale(s);const sel=new Set();const aiR=aiAdvice(m=>m.chooseDiscard(s,0,n,purpose,card));const aiD=G.hint?(aiR||[]):[];
     return pmodal(`<h2>${esc(purpose)}</h2><p>捨てるカードを${n}枚選んでください</p>${aiLine(aiD.length?aiD.map(NAME).join('・'):null)}<div class="opts">${s.players[0].hand.map(c=>cardHTML(c,G.hint&&aiD.includes(c)?'aif':'')).join('')}</div><div class="mdet" id="mdet"><span style="opacity:.5">タップで選択・効果を表示</span></div><div class="btns"><button class="pri" id="dOK" disabled>決定（0/${n}）</button></div>`,
     (r,close)=>{const ok=r.querySelector('#dOK');r.querySelectorAll('.opts .card').forEach(el=>el.onclick=()=>{const c=+el.dataset.c;if(sel.has(c))sel.delete(c);else if(sel.size<n)sel.add(c);el.classList.toggle('sel',sel.has(c));r.querySelector('#mdet').innerHTML=`<b>${esc(NAME(c))}</b>：${esc(CARDS[c].text)}`;ok.disabled=sel.size!==n;ok.textContent=`決定（${sel.size}/${n}）`;});ok.onclick=()=>{if(n<s.players[0].hand.length)recStat('捨てるカード',aiR?[...sel].sort().join()===[...aiR].sort().join():null);close([...sel]);};});},
   declareName:async(s)=>{stale(s);
     const me=s.players[0],cpu=s.players[1];const aiR=aiAdvice(m=>m.declareName(s,0));const aiN=G.hint?aiR:null;
-    const st=c=>s.known[0].has(c)?['known','CPU手札で判明']:s.discard.includes(c)?['out','捨て札']:me.hand.includes(c)?['out','あなたの手札']:me.field.includes(c)?['out','あなたの場']:cpu.field.includes(c)?['out','CPUの場']:['','不明'];
+    const st=c=>s.known[0].has(c)?['known',OPh()+'手札で判明']:s.discard.includes(c)?['out','捨て札']:me.hand.includes(c)?['out','あなたの手札']:me.field.includes(c)?['out','あなたの場']:cpu.field.includes(c)?['out',OP()+'の場']:['','不明'];
     const ids=CARDS.filter(d=>d.id!==SUISHO).map(d=>d.id);
     const order=[...ids.filter(c=>st(c)[0]==='known'),...ids.filter(c=>st(c)[0]===''),...ids.filter(c=>st(c)[0]==='out')];
     const unknownSlots=cpu.hand.length-s.known[0].size;
-    return pmodal(`<h2>ひらめき水晶</h2><p>CPUの手札（${cpu.hand.length}枚）にありそうなカード名を宣言してください。判明しているカードは確実に当たります。</p>
-    ${aiLine(aiN==null?null:NAME(aiN))}<div class="nleg"><span class="nb known">CPU手札で判明</span><span class="nb">不明（CPU手札 残り${unknownSlots}枚 or 山札）</span><span class="nb out">ありえない</span></div>
+    return pmodal(`<h2>ひらめき水晶</h2><p>${OP()}の手札（${cpu.hand.length}枚）にありそうなカード名を宣言してください。判明しているカードは確実に当たります。</p>
+    ${aiLine(aiN==null?null:NAME(aiN))}<div class="nleg"><span class="nb known">${OPh()}手札で判明</span><span class="nb">不明（${OPh()}手札 残り${unknownSlots}枚 or 山札）</span><span class="nb out">ありえない</span></div>
     <div class="names">${order.map(c=>{const [k,l]=st(c);return `<button data-c="${c}" class="${k} ${G.hint&&c===aiN?'aih':''}">${artSVG(c)}<span class="nt">${esc(CARDS[c].name)}<small>${l}</small></span></button>`;}).join('')}</div>`,
     (r,close)=>r.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{recStat('水晶の宣言',aiR==null?null:+b.dataset.c===aiR);close(+b.dataset.c);}));},
 };
 
 function showDiscard(){const s=G.s;if(!s)return;modal(`<h2>捨て札（${s.discard.length}枚・新しい順）</h2><div class="reflist">${s.discard.slice().reverse().map(refHTML).join('')||'<p>なし</p>'}</div><div class="btns"><button data-x>閉じる</button></div>`,(r,close)=>r.querySelector('[data-x]').onclick=()=>close(),'refRoot');}
-function showLog(){const s=G.s;if(!s){showRecords();return;}modal(`<h2>ログ</h2><div class="log sum" id="lg">${s.log.filter(l=>l.cls!=='rule'||s.winner!=null).map(l=>`<div class="${l.cls}">${esc(l.msg)}</div>`).join('')}</div><div class="btns"><button data-rec>過去の記録</button><button data-x>閉じる</button></div>`,(r,close)=>{r.querySelector('[data-x]').onclick=()=>close();r.querySelector('[data-rec]').onclick=()=>{close();showRecords();};const m=r.querySelector('.modal');m.scrollTop=m.scrollHeight;},'refRoot');}
+function showLog(){const s=G.s;if(!s){showRecords();return;}modal(`<h2>ログ</h2><div class="log sum" id="lg">${s.log.filter(l=>l.cls!=='rule'||s.winner!=null).map(l=>`<div class="${l.cls}">${esc(T(l.msg))}</div>`).join('')}</div><div class="btns"><button data-rec>過去の記録</button><button data-x>閉じる</button></div>`,(r,close)=>{r.querySelector('[data-x]').onclick=()=>close();r.querySelector('[data-rec]').onclick=()=>{close();showRecords();};const m=r.querySelector('.modal');m.scrollTop=m.scrollHeight;},'refRoot');}
 // ---- 過去の対戦記録（保存した記録を読み出して表示） ----
 async function loadRecords(){
   if(typeof claude==='undefined'||!claude.use)return null;
@@ -340,22 +350,22 @@ async function cpuTurnSummary(s,entries,lifeBefore){
   const items=entries.filter(l=>l.cls!=='turn'&&l.cls!=='rule'&&!/ターン終了$/.test(l.msg));
   const me=s.players[0],cpu=s.players[1];
   const d=(a,b)=>a===b?`${b}`:`${a}→<b style="color:#c62828">${b}</b>`;
-  return pmodal(`<div class="endhead"><span>CPUのターン終了</span><small>ターン${s.turnCount}</small></div>
-    <p style="margin-top:0">CPUがこのターンにしたこと：</p>
-    <div class="sum">${items.length?items.map(l=>`<div class="${l.cls}">${esc(l.msg)}</div>`).join(''):'<div>何もプレイしなかった</div>'}</div>
-    <div class="lifecmp"><div>あなた ライフ ${d(lifeBefore[0],me.life)}<br>書 ${me.chips}</div><div>CPU ライフ ${d(lifeBefore[1],cpu.life)}<br>書 ${cpu.chips}・手札${cpu.hand.length}</div></div>
+  return pmodal(`<div class="endhead"><span>${OP()}のターン終了</span><small>ターン${s.turnCount}</small></div>
+    <p style="margin-top:0">${OP()}がこのターンにしたこと：</p>
+    <div class="sum">${items.length?items.map(l=>`<div class="${l.cls}">${esc(T(l.msg))}</div>`).join(''):'<div>何もプレイしなかった</div>'}</div>
+    <div class="lifecmp"><div>あなた ライフ ${d(lifeBefore[0],me.life)}<br>書 ${me.chips}</div><div>${OP()} ライフ ${d(lifeBefore[1],cpu.life)}<br>書 ${cpu.chips}・手札${cpu.hand.length}</div></div>
     <div class="btns"><button class="pri" data-go>あなたのターンへ ▶</button></div>`,
     (r,close)=>r.querySelector('[data-go]').onclick=()=>close());
 }
 
-async function startGame(first){
-  const s=newGame(first,Math.random,['あなた','CPU']);G.s=s;G.result=null;G.stat={n:0,m:0,k:{}};G.sel=null;G.info=null;G.awaitPlay=null;
+// 画面の更新（エンジンの s.hooks.update と、オンライン対戦のゲスト側で共通に使う）
+function makeUpdater(s){
   let lastLen=0,turnStart=0,lifeBefore=[4,4];
-  s.hooks.update=async(kind)=>{
+  return async(kind)=>{
     stale(s);render();
     const fresh=s.log.slice(lastLen);lastLen=s.log.length;
     const cpuTurn=s.turn===1;
-    if(kind==='turn'){G.snaps.push(gameSnap(s));turnStart=s.log.length-1;lifeBefore=[s.players[0].life,s.players[1].life];banner(cpuTurn?'CPUのターン':'あなたのターン');cpuTurn?sfx.turnCpu():sfx.turnYou();if(cpuTurn)await sleep(700);return;}
+    if(kind==='turn'){if(!G.online)G.snaps.push(gameSnap(s));turnStart=s.log.length-1;lifeBefore=[s.players[0].life,s.players[1].life];banner(cpuTurn?OP()+'のターン':'あなたのターン');cpuTurn?sfx.turnCpu():sfx.turnYou();if(cpuTurn)await sleep(700);return;}
     const show=fresh.filter(l=>l.cls!=='turn'&&l.cls!=='rule'&&!/ターン終了$/.test(l.msg));
     if(kind==='play')cpuTurn?sfx.cpuPlay():sfx.play();
     if(kind==='neg')sfx.negate();
@@ -368,6 +378,11 @@ async function startGame(first){
     else if(['neg','dmg'].includes(kind))await sleep(400);
     stale(s);
   };
+}
+async function startGame(first){
+  G.online=null;
+  const s=newGame(first,Math.random,['あなた','CPU']);G.s=s;G.result=null;G.stat={n:0,m:0,k:{}};G.sel=null;G.info=null;G.awaitPlay=null;
+  s.hooks.update=makeUpdater(s);
   render();
   G.snaps=[];G.startedAt=new Date().toISOString();
   try{
@@ -378,8 +393,8 @@ async function startGame(first){
   }catch(e){if(e.message!=='abort')console.error(e);}
 }
 // リザルト画面（「盤面を見る」で閉じた後も、上の結果表示を押せば開き直せる）
-function showResult(){const R=G.result;if(!R)return Promise.resolve();
-  return modal(`<div class="title-big">${R.w===0?'あなたの勝ち！🎉':'CPUの勝ち…'}</div><p>${R.turns}ターンで決着。「ログ」で流れを振り返れます。</p>${matchHTML()}<div class="btns"><button class="pri" data-a>もう一度</button><button data-b>盤面を見る</button></div>`,
+function showResult(){const R=G.result;if(!R)return Promise.resolve();if(G.online)return netShowResult();
+  return modal(`<div class="title-big">${R.w===0?'あなたの勝ち！🎉':OP()+'の勝ち…'}</div><p>${R.turns}ターンで決着。「ログ」で流れを振り返れます。</p>${matchHTML()}<div class="btns"><button class="pri" data-a>もう一度</button><button data-b>盤面を見る</button></div>`,
     (r,close)=>{r.querySelector('[data-a]').onclick=()=>{close();startScreen();};r.querySelector('[data-b]').onclick=()=>close();});}
 // 対戦の記録を保存する（Claudeが後から読めるように）。保存できなくても対戦には影響しない
 const LV_NAME={1:'ふつう',2:'つよい',6:'AI5',7:'AI6',8:'AI6.5'};
@@ -401,6 +416,7 @@ async function saveGame(s,w){
 function matchHTML(){const S=G.stat;if(!S||!S.n)return '';const pc=(a,b)=>b?Math.round(a/b*1000)/10:0;
   return `<div class="sum"><div class="play">AIと同じ選択：${S.m} / ${S.n}回（${pc(S.m,S.n)}%）</div>${Object.entries(S.k).map(([k,v])=>`<div>${k}：${v[0]} / ${v[1]}回（${pc(v[0],v[1])}%）</div>`).join('')}</div>`;}
 function startScreen(){
+  if(G.online)netLeave();
   G.s=null;G.awaitPlay=null;render();
   modal(`<div class="title-big">はらぺこ<br>バハムート<br><span style="font-size:16px">vs CPU</span></div>
   <div class="tarts" style="display:flex;gap:6px;margin:6px 0">${[HARA,KODOMO,GOB].map(c=>`<div style="flex:1;height:70px;border:2px solid #151515;background:#fff">${artSVG(c)}</div>`).join('')}</div>
@@ -411,7 +427,10 @@ function startScreen(){
   <div class="btns"><button data-f="0">先攻</button><button data-f="1">後攻</button><button data-f="r">ランダム</button></div>
   <div class="setrow"><button class="sm" id="hintBtn"></button><span>おすすめの手を青い枠で示す</span></div>
   <div class="setrow"><button class="sm" id="ruleBtn"></button><span>勝ちが確定する手・負けを防ぐ手をルールで決める（AI5〜AI6.5・おすすめに適用）</span></div>
-  <div class="btns"><button class="sm" data-r>ルール・カード一覧</button><button class="sm" data-rec>対戦の記録</button></div>`,
+  <div class="btns"><button class="sm" data-r>ルール・カード一覧</button><button class="sm" data-rec>対戦の記録</button></div>
+  <h2 style="margin-top:14px">オンライン対戦（合言葉）</h2>
+  <p style="font-size:12px">知り合いと、合言葉で部屋に入って対戦します。</p>
+  <div class="btns"><button data-oh>部屋を作る</button><button data-oj>部屋に入る</button></div>`,
   (r,close)=>{const lvTx={1:'ふつう：基本の戦略ルールで打つCPU。',2:'つよい：相手の手札を確率で読み、書の枚数を計算して打つCPU。',6:'AI5：詰み回避・勝ち切りの場面を重点的に練習した。ルールなしでもAI4＋ルールに約55%勝つ。',7:'AI6：AI5から1,000万ステップ超鍛え、勝ち切り・詰み回避を先生役で教えた。AI5に約57%勝つ。',8:'AI6.5（最新）：AI5から3,000万ステップまで鍛え続けた。AI5に約62%、AI6に約56%勝つ。'};
     const badge=(b,w,n)=>{let e=b.querySelector('.bdg');if(!e){e=document.createElement('span');e.className='bdg';b.appendChild(e);}
       e.classList.toggle('none',!n);e.textContent=G.recs===undefined?'…':n?pct(w,n):'--';e.title=n?`${n}局中 CPU ${w}勝`:'記録なし';};
@@ -426,8 +445,10 @@ function startScreen(){
     hb.onclick=()=>{G.hint=!G.hint;try{localStorage.setItem('hb_hint',G.hint?'on':'off');}catch(e){}uh();};uh();
     const rb=r.querySelector('#ruleBtn');const ur=()=>{rb.textContent=G.rules?'確定手ルール：ON':'確定手ルール：OFF';rb.classList.toggle('pri',G.rules);};
     rb.onclick=()=>{G.rules=!G.rules;try{localStorage.setItem('hb_rules',G.rules?'on':'off');}catch(e){}ur();};ur();
-    r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const v=b.dataset.f;close();startGame(v==='r'?(Math.random()<.5?0:1):+v);});r.querySelector('[data-r]').onclick=showRef;r.querySelector('[data-rec]').onclick=showRecords;});
+    r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const v=b.dataset.f;close();startGame(v==='r'?(Math.random()<.5?0:1):+v);});r.querySelector('[data-r]').onclick=showRef;r.querySelector('[data-rec]').onclick=showRecords;
+    r.querySelector('[data-oh]').onclick=()=>{close();netHostLobby();};r.querySelector('[data-oj]').onclick=()=>{close();netJoinLobby();};});
 }
+/*ONLINE*/
 startScreen();
 </script>
 </body>

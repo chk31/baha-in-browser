@@ -20,6 +20,7 @@
 | `app/rl.js`, `app/weights/` | 強化学習CPUの推論（JSで順伝播）と重み。アプリが使うのは AI5・AI6・AI6.5。AI2〜AI4 は分析用に残しているだけ |
 | `app/cpu2.js` | ルールベースCPU「つよい」（「ふつう」は engine.js 内） |
 | `app/art.js` | カードの絵 |
+| `app/online.js`, `app/online_config.js` | オンライン対戦（合言葉）。ホストが進行役。通信は PeerJS か Firebase（`docs/ONLINE.md`） |
 | `app/build.py` | 1ファイルのページ `site/index.html` を作る |
 | `app/load_all.js` | Node.js から全部品を読み込む（テスト・分析用） |
 | `tools/` | 対戦の記録・表示・再現（`docs/LOG_FORMAT.md`） |
@@ -59,4 +60,5 @@ python python/dump_states.py 300 /tmp/states.json && node tests/parity_js_py.js 
 - 公開中のアプリ（claude.ai のアーティファクト）は CPU 5段階：ふつう／つよい／AI5／AI6／AI6.5（初期値）。
 - 最新は **AI6.5**（AI5 から 3,000万ステップ）。AI6 に 0.55〜0.56、AI5 に 0.61〜0.63。過去の全モデルに勝ち越し、すくみ（非推移）は無い。
 - 学習は別途、ユーザーのローカルPCで Claude Code（VS Code 拡張）が回している。このリポジトリでは学習はしない。
+- オンライン対戦（合言葉）を追加。今は PeerJS（WebRTC）でつなぐ。`app/online_config.js` に Firebase の設定を入れると Firebase に切り替わる（`docs/ONLINE.md`）。
 - 直近の修正：R8 に「打ち消す側の手札が0枚なら、相手のひらめき水晶は打ち消さない」を追加（JS・Python とも）。
