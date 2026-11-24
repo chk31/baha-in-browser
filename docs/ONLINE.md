@@ -10,8 +10,13 @@
 ## 通信方式
 | 設定 | 使われる方式 |
 |---|---|
-| `app/online_config.js` の `FIREBASE_CONFIG` が `null`（今の状態） | **PeerJS（WebRTC）**。設定不要。公開の仲介サーバー `0.peerjs.com` を使う。スマホのモバイル回線同士だとつながらないことがある |
+| `app/online_config.js` の `FIREBASE_CONFIG` が `null`（今の状態） | **PeerJS（WebRTC）**。設定不要。公開の仲介サーバー `0.peerjs.com` を使う。TURN を使うので、モバイル回線同士でもつながりやすい |
 | `FIREBASE_CONFIG` に値を入れる | **Firebase Realtime Database**。どの回線でもつながりやすい |
+
+PeerJS には Metered の STUN/TURN を渡している（`app/online_config.js` の `ICE_SERVERS`）。直接つながれない回線（モバイル回線同士など）でも、TURN（中継サーバー）を経由してつながる。
+- この鍵（username / credential）はページに埋め込まれ、リポジトリも公開なので、誰でも見られる。使われすぎたら Metered の管理画面で鍵を作り直し、`ICE_SERVERS` を書き換える。
+- URL に `?relay=1` を付けると、中継（TURN）だけを使う（TURN が働いているかの確認用。通信は少し遅くなる）。
+- Firebase 方式は WebRTC を使わないので TURN は関係しない。
 
 URL に `?net=peer` を付けると、Firebase の設定があっても PeerJS を使う（`?net=local` は同じブラウザの別タブ同士でつなぐ試験用）。
 両方の端末が同じ版のページを開いている必要がある（版が違うと入室時に知らせる）。

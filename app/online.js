@@ -30,6 +30,11 @@ function mkTransport(kind,sendRaw,closeRaw){
   return t;
 }
 // PeerJS（WebRTC）
+// WebRTC の設定：STUN/TURN を渡す。URL に ?relay=1 を付けると中継（TURN）だけを使う（TURN の確認用）
+function peerOpts(){
+  let relay=false;try{relay=new URLSearchParams(location.search).get('relay')==='1';}catch(e){}
+  return{config:{iceServers:ICE_SERVERS,...(relay?{iceTransportPolicy:'relay'}:{})}};
+}
 async function peerLib(){if(!window.Peer)await loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js');return window.Peer;}
 function peerWrap(conn,peer){
   const t=mkTransport('peer',o=>conn.send(o),()=>{conn.close();peer.destroy();});
@@ -39,7 +44,7 @@ function peerWrap(conn,peer){
 async function peerHost(code,onConn){
   const Peer=await peerLib();
   return new Promise((res,rej)=>{
-    const peer=new Peer(PEER_PREFIX+code);let opened=false;
+    const peer=new Peer(PEER_PREFIX+code,peerOpts());let opened=false;
     peer.on('open',()=>{opened=true;res({close(){try{peer.destroy();}catch(e){}}});});
     peer.on('error',e=>{if(!opened)rej(e);});
     peer.on('disconnected',()=>{if(!peer.destroyed)try{peer.reconnect();}catch(e){}});
@@ -49,7 +54,7 @@ async function peerHost(code,onConn){
 async function peerJoin(code){
   const Peer=await peerLib();
   return withTimeout(new Promise((res,rej)=>{
-    const peer=new Peer();
+    const peer=new Peer(undefined,peerOpts());
     peer.on('error',e=>{try{peer.destroy();}catch(x){}rej(e.type==='peer-unavailable'?new Error('部屋が見つかりません。合言葉を確かめてください'):e);});
     peer.on('open',()=>{const conn=peer.connect(PEER_PREFIX+code,{reliable:true});conn.on('open',()=>res(peerWrap(conn,peer)));});
   }),20000,'つながりませんでした（時間切れ）。回線を変えて（Wi-Fi など）試してください');
